@@ -80,7 +80,7 @@ class BO1 {
 
     randomTeams(numTeams) {
         const n = this.players.length;
-        if (n % numTeams !== 0) {
+        if(n % numTeams !== 0) {
             throw new Error("玩家数量必须能被队伍数量整除");
         }
         const teamSize = n / numTeams;
@@ -90,8 +90,8 @@ class BO1 {
         const ranks = Object.fromEntries(this.players.map(p => [p.wechat_name, p.rank]));
     
         // 检查组拍是否冲突
-        for (const group of this.groups) {
-            if (!group.every(id => playerIds.includes(id))) {
+        for(const group of this.groups) {
+            if(!group.every(id => playerIds.includes(id))) {
                 throw new Error("组拍冲突");
             }
         }
@@ -102,22 +102,22 @@ class BO1 {
         let bestTeams = null;
     
         // 遍历所有组合，找到最优组合
-        for (const combination of this.getTeamCombinations(allCombinations, numTeams)) {
+        for(const combination of this.getTeamCombinations(allCombinations, numTeams)) {
             const usedPlayers = new Set(combination.flat());
-            if (usedPlayers.size !== playerIds.length) {
+            if(usedPlayers.size !== playerIds.length) {
                 continue; // 确保没有重复使用玩家
             }
     
             // 检查组拍是否被拆散
             let valid = true;
-            for (const group of this.groups) {
+            for(const group of this.groups) {
                 const inOneTeam = combination.some(team => group.every(id => team.includes(id)));
-                if (!inOneTeam) {
+                if(!inOneTeam) {
                     valid = false;
                     break;
                 }
             }
-            if (!valid) {
+            if(!valid) {
                 continue;
             }
     
@@ -126,7 +126,7 @@ class BO1 {
             const maxRank = Math.max(...teamRanks);
             const minRank = Math.min(...teamRanks);
             const diff = maxRank - minRank;
-            if (diff < bestDiff) {
+            if(diff < bestDiff) {
                 bestDiff = diff;
                 bestTeams = combination;
             }
@@ -139,11 +139,11 @@ class BO1 {
     getCombinations(arr, size) {
         const result = [];
         const helper = (start, combo) => {
-            if (combo.length === size) {
+            if(combo.length === size) {
                 result.push([...combo]);
                 return;
             }
-            for (let i = start; i < arr.length; i++) {
+            for(let i = start; i < arr.length; i++) {
                 combo.push(arr[i]);
                 helper(i + 1, combo);
                 combo.pop();
@@ -154,30 +154,30 @@ class BO1 {
     }
     
     getTeamCombinations(combinations, numTeams) {
-        const result = [];
-        const helper = (start, current, usedPlayers) => {
-            if (current.length === numTeams) {
-                result.push([...current]);
-                return;
+    const result = [];
+    const helper = (start, current, usedPlayers) => {
+        if(current.length === numTeams) {
+            result.push([...current]);
+            return;
+        }
+        for(let i = start; i < combinations.length; i++) {
+            const team = combinations[i];
+            // 检查是否有玩家被重复使用
+            if(team.some(player => usedPlayers.has(player))) {
+                continue;
             }
-            for (let i = start; i < combinations.length; i++) {
-                const team = combinations[i];
-                // 检查是否有玩家被重复使用
-                if (team.some(player => usedPlayers.has(player))) {
-                    continue;
-                }
-                // 标记当前队伍的玩家为已使用
-                team.forEach(player => usedPlayers.add(player));
-                current.push(team);
-                helper(i + 1, current, usedPlayers);
-                current.pop();
-                // 回溯时移除标记
-                team.forEach(player => usedPlayers.delete(player));
-            }
-        };
-        helper(0, [], new Set());
-        return result;
-    }
+            // 标记当前队伍的玩家为已使用
+            team.forEach(player => usedPlayers.add(player));
+            current.push(team);
+            helper(i + 1, current, usedPlayers);
+            current.pop();
+            // 回溯时移除标记
+            team.forEach(player => usedPlayers.delete(player));
+        }
+    };
+    helper(0, [], new Set());
+    return result;
+}
 
     // 打印赛程
     printSchedule() {
