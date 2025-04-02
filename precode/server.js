@@ -89,95 +89,76 @@ class BO1 {
         const playerIds = this.players.map(p => p.wechat_name);
         const ranks = Object.fromEntries(this.players.map(p => [p.wechat_name, p.rank]));
     
-        // 检查组拍是否冲突
-        for(const group of this.groups) {
-            if(!group.every(id => playerIds.includes(id))) {
-                throw new Error("组拍冲突");
+        // 初始化队伍
+        let currentTeams = this.initializeRandomTeams(playerIds, numTeams, teamSize);
+        let bestTeams = currentTeams;
+        let bestScore = this.calculateScore(currentTeams, ranks);
+    
+        // 模拟退火参数
+        let temperature = 100; // 初始温度
+        const coolingRate = 0.99; // 降温速率
+        const minTemperature = 0.1; // 最低温度
+    
+        while(temperature > minTemperature) {
+            // 生成新解（随机交换两个玩家）
+            const newTeams = this.generateNeighbor(currentTeams, playerIds, teamSize);
+            const newScore = this.calculateScore(newTeams, ranks);
+    
+            // 如果新解更优，接受新解
+            if(newScore < bestScore) {
+                bestTeams = newTeams;
+                bestScore = newScore;
             }
+    
+            // 根据概率接受次优解
+            if(Math.random() < Math.exp((bestScore - newScore) / temperature)) {
+                currentTeams = newTeams;
+            }
+    
+            // 降温
+            temperature *= coolingRate;
         }
     
-        // 生成所有可能的分组
-        const allCombinations = this.getCombinations(playerIds, teamSize);
-        let bestDiff = Infinity;
-        let bestTeams = null;
-    
-        // 遍历所有组合，找到最优组合
-        for(const combination of this.getTeamCombinations(allCombinations, numTeams)) {
-            const usedPlayers = new Set(combination.flat());
-            if(usedPlayers.size !== playerIds.length) {
-                continue; // 确保没有重复使用玩家
-            }
-    
-            // 检查组拍是否被拆散
-            let valid = true;
-            for(const group of this.groups) {
-                const inOneTeam = combination.some(team => group.every(id => team.includes(id)));
-                if(!inOneTeam) {
-                    valid = false;
-                    break;
-                }
-            }
-            if(!valid) {
-                continue;
-            }
-    
-            // 计算每个队伍的段位差
-            const teamRanks = combination.map(team => team.reduce((sum, id) => sum + ranks[id], 0));
-            const maxRank = Math.max(...teamRanks);
-            const minRank = Math.min(...teamRanks);
-            const diff = maxRank - minRank;
-            if(diff < bestDiff) {
-                bestDiff = diff;
-                bestTeams = combination;
-            }
-        }
-    
+        // 转换队伍格式
         this.teams = bestTeams.map(team => team.map(id => this.players.find(p => p.wechat_name === id)));
         return this.teams;
     }
     
-    getCombinations(arr, size) {
-        const result = [];
-        const helper = (start, combo) => {
-            if(combo.length === size) {
-                result.push([...combo]);
-                return;
-            }
-            for(let i = start; i < arr.length; i++) {
-                combo.push(arr[i]);
-                helper(i + 1, combo);
-                combo.pop();
-            }
-        };
-        helper(0, []);
-        return result;
+    // 初始化随机队伍
+    initializeRandomTeams(playerIds, numTeams, teamSize) {
+        const shuffled = [...playerIds];
+        this.shuffle(shuffled);
+        return Array.from({ length: numTeams }, (_, i) =>
+            shuffled.slice(i * teamSize, (i + 1) * teamSize)
+        );
     }
     
-    getTeamCombinations(combinations, numTeams) {
-    const result = [];
-    const helper = (start, current, usedPlayers) => {
-        if(current.length === numTeams) {
-            result.push([...current]);
-            return;
+    // 计算分组得分（目标函数）
+    calculateScore(teams, ranks) {
+        const teamAverages = teams.map(team =>
+            team.reduce((sum, id) => sum + ranks[id], 0) / team.length
+        );
+        return Math.max(...teamAverages) - Math.min(...teamAverages);
+    }
+    
+    // 生成邻居解（随机交换两个玩家）
+    generateNeighbor(teams, playerIds, teamSize) {
+        const newTeams = teams.map(team => [...team]);
+        const team1Index = Math.floor(Math.random() * newTeams.length);
+        const team2Index = Math.floor(Math.random() * newTeams.length);
+    
+        if(team1Index !== team2Index) {
+            const player1Index = Math.floor(Math.random() * newTeams[team1Index].length);
+            const player2Index = Math.floor(Math.random() * newTeams[team2Index].length);
+    
+            // 交换两个玩家
+            const temp = newTeams[team1Index][player1Index];
+            newTeams[team1Index][player1Index] = newTeams[team2Index][player2Index];
+            newTeams[team2Index][player2Index] = temp;
         }
-        for(let i = start; i < combinations.length; i++) {
-            const team = combinations[i];
-            // 检查是否有玩家被重复使用
-            if(team.some(player => usedPlayers.has(player))) {
-                continue;
-            }
-            // 标记当前队伍的玩家为已使用
-            team.forEach(player => usedPlayers.add(player));
-            current.push(team);
-            helper(i + 1, current, usedPlayers);
-            current.pop();
-            // 回溯时移除标记
-            team.forEach(player => usedPlayers.delete(player));
-        }
-    };
-    helper(0, [], new Set());
-    return result;
-}
+    
+        return newTeams;
+    }
 
     // 打印赛程
     printSchedule() {
@@ -201,7 +182,9 @@ game.players = [
     new Player("p9", 1.1), new Player("p10", 0.9),
     new Player("p11", 5.2), new Player("p12", 0.7),
     new Player("p13", 3.6), new Player("p14", 2.5),
-    new Player("p15", 1.8)
+    new Player("p15", 1.8), new Player("p16", 0.6),
+    new Player("p17", 4.5), new Player("p18", 4.0),
+    new Player("p19", 3.8), new Player("p20", 3.5)
 ];
 game.createGroups(["p2", "p3"]);
 game.joinGroups("p4", "p2");
@@ -209,7 +192,12 @@ game.createGroups(["p5", "p6"]);
 game.createGroups(["p7", "p8"]);
 game.createGroups(["p9", "p10"]);
 game.createGroups(["p11", "p13", "p15"]);
-game.randomTeams(3);
+
+// 开始时间
+let startTime = new Date();
+game.randomTeams(4);
+let endTime = new Date();
+console.log(`分组耗时: ${(endTime - startTime) / 1000}s`);
 // 打印队伍
 game.teams.forEach((team, index) => {
     console.log(`队伍${index + 1}:`, team.map(player => player.wechat_name));
