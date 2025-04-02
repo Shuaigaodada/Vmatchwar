@@ -79,6 +79,7 @@ class BO1 {
     }
 
     randomTeams(numTeams) {
+        // 退火算法
         const n = this.players.length;
         if(n % numTeams !== 0) {
             throw new Error("玩家数量必须能被队伍数量整除");
@@ -195,7 +196,7 @@ game.createGroups(["p11", "p13", "p15"]);
 
 // 开始时间
 let startTime = new Date();
-game.randomTeams(4);
+game.randomTeams(game.players.length / 5);
 let endTime = new Date();
 console.log(`分组耗时: ${(endTime - startTime) / 1000}s`);
 // 打印队伍
